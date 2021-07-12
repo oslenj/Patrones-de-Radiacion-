@@ -1,0 +1,388 @@
+"""
+Created on Wed Mar 18 17:17:16 2020
+
+@author: oslenj
+"""
+
+import numpy as np
+import math
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+from matplotlib import cm, colors
+import scipy.special as sp
+import sympy as sy##paa derivadas 
+from sympy.utilities.lambdify import lambdify
+#from sympy import sym
+#import scipy as sci
+import matplotlib.colors as mcolors
+
+
+#Declaramos los símbolos que usaremos
+x, t1 ,t ,THETA= sy.symbols('x t1,t,THETA')
+
+#Utilizamos el método init_printing
+sy.init_printing(use_unicode=True)
+
+
+def S1N2(lon,n1,n2,m1,r,t2): 
+    # =============================================================================
+    # Funcion generadora de los polinomios asociados de Legendre por formula de rodriguez 
+    # =============================================================================
+    def polasoc(m,l):
+        a= (((-1)**m)/(2**l *math.factorial(l)))*(1-x**2)**(m/2)*sy.diff((x**2 -1)**l,x,l+m)
+        b=a.replace(x,sy.cos(t))
+        return (b)
+
+    ##Funcion que hace la derivada de los polinomios As. Legendre
+    def deripolasoc(m,l,t1):
+        a=sy.diff(polasoc(m,l),t)
+        b=a.replace(t,t1)
+        return (b)
+
+     #Funcion adecuada en forma de matriz para poder plotear
+    def derdgc(m,l,t2):
+        n=len(t2)
+        jnz = np.zeros((n),dtype=complex)
+        for i in range(0,n):
+            jnz[i]=deripolasoc(m,l,t2[i])
+        return(jnz)
+ 
+    def anbn(lon,n1,n2,m1,r):
+        x=(2*np.pi*r*m1)/lon
+        m = complex(n1/m1,n2/m1)
+        z =complex((n1/m1)*x,(n2/m1)*x)
+        #z=complex(0.4647*x,1.5 *x)
+        n= int(np.round(2+x+4*(x**(1/3))))
+
+        ###funcion jn  ya arrancan desde 1 debido a que en la sumato-
+        ##ria n=1 a infinito 
+        jn = np.zeros((n))
+        for i in range(1,n+1):
+            jn[i-1]=sp.spherical_jn(i,x)
+        ###funcion jn-1
+        jn1 = np.zeros((n))
+        for i in range(1,n+1):
+            jn1[i-1]=sp.spherical_jn(i-1,x)
+    
+        yn = np.zeros((n))
+        for i in range(1,n+1):
+             yn[i-1]=sp.spherical_yn(i,x)
+             
+        yn1 = np.zeros((n))
+        for i in range(1,n+1):
+            yn1[i-1]=sp.spherical_yn(i-1,x)
+    
+        hn = np.zeros((n),dtype=complex)
+        for i in range(0,n):
+            hn[i]=complex(jn[i],yn[i])
+
+        hn1 = np.zeros((n),dtype=complex)
+        for i in range(0,n):
+           hn1[i]=complex(jn1[i],yn1[i])
+
+        jnz = np.zeros((n),dtype=complex)
+        for i in range(1,n+1):
+            jnz[i-1]=sp.spherical_jn(i,z)
+        jn1z = np.zeros((n),dtype=complex)
+        for i in range(1,n+1):
+            jn1z[i-1]=sp.spherical_jn(i-1,z)
+
+        an = np.zeros((n), dtype=complex)
+        for i in range(0,n): #asigna en cada elemento (comenzando desde
+                         ## 1 y no de cero) de la matriz PHI un valor 
+                         ##calculado por medio de la ecuacion dentro 
+                         ##del for 
+    	    an[i]=((m**2)*(jnz[i])*(x*jn1[i]-(i+1)*jn[i])-jn[i]*(z*jn1z[i]
+                  -(i+1)*jnz[i]))/((m**2)*(jnz[i])*(x*hn1[i]-(i+1)*hn[i])-
+                  hn[i]*(z*jn1z[i]-(i+1)*jnz[i]))
+
+        bn = np.zeros((n), dtype=complex)
+        for i in range(0,n):  
+	        bn[i]=((jnz[i])*(x*jn1[i]-(i+1)*jn[i])-jn[i]*(z*jn1z[i]
+                  -(i+1)*jnz[i]))/((jnz[i])*(x*hn1[i]-(i+1)*hn[i])
+                  -hn[i]*(z*jn1z[i]-(i+1)*jnz[i]))
+
+        return(an,bn,n)
+               
+    an,bn,n=anbn(lon,n1,n2,m1,r)       
+                
+    def S1S(n):
+        t = sy.symbols('t')
+        r = sy.zeros((n), dtype=complex)
+        for i in range(1,n):
+            r[i-1] =  ((2*i+1)/(i*(i+1))) *( an[i-1]*polasoc(1,i)/sy.sin(t) +bn[i-1]*deripolasoc(1,i,t) )
+        r=sum(r)  
+        return (r)
+
+    def S1R(t1):
+        b=lambdify(t,S1S(n),np)
+        c=b(t1)
+        return c
+    
+    p=np.abs(S1R(t2))**2
+   
+    return(p)
+
+
+
+
+
+
+
+def S2N2(lon,n1,n2,m1,r,t2): 
+    # =============================================================================
+    # Funcion generadora de los polinomios asociados de Legendre por formula de rodriguez 
+    # =============================================================================
+    def polasoc(m,l):
+        a= (((-1)**m)/(2**l *math.factorial(l)))*(1-x**2)**(m/2)*sy.diff((x**2 -1)**l,x,l+m)
+        b=a.replace(x,sy.cos(t))
+        return (b)
+
+    ##Funcion que hace la derivada de los polinomios As. Legendre
+    def deripolasoc(m,l,t1):
+        a=sy.diff(polasoc(m,l),t)
+        b=a.replace(t,t1)
+        return (b)
+
+     #Funcion adecuada en forma de matriz para poder plotear
+    def derdgc(m,l,t2):
+        n=len(t2)
+        jnz = np.zeros((n),dtype=complex)
+        for i in range(0,n):
+            jnz[i]=deripolasoc(m,l,t2[i])
+        return(jnz)
+ 
+    def anbn(lon,n1,n2,m1,r):
+        x=(2*np.pi*r*m1)/lon
+        m = complex(n1/m1,n2/m1)
+        z =complex((n1/m1)*x,(n2/m1)*x)
+        #z=complex(0.4647*x,1.5 *x)
+        n= int(np.round(2+x+4*(x**(1/3))))
+
+        ###funcion jn  ya arrancan desde 1 debido a que en la sumato-
+        ##ria n=1 a infinito 
+        jn = np.zeros((n))
+        for i in range(1,n+1):
+            jn[i-1]=sp.spherical_jn(i,x)
+        ###funcion jn-1
+        jn1 = np.zeros((n))
+        for i in range(1,n+1):
+            jn1[i-1]=sp.spherical_jn(i-1,x)
+    
+        yn = np.zeros((n))
+        for i in range(1,n+1):
+             yn[i-1]=sp.spherical_yn(i,x)
+             
+        yn1 = np.zeros((n))
+        for i in range(1,n+1):
+            yn1[i-1]=sp.spherical_yn(i-1,x)
+    
+        hn = np.zeros((n),dtype=complex)
+        for i in range(0,n):
+            hn[i]=complex(jn[i],yn[i])
+
+        hn1 = np.zeros((n),dtype=complex)
+        for i in range(0,n):
+           hn1[i]=complex(jn1[i],yn1[i])
+
+        jnz = np.zeros((n),dtype=complex)
+        for i in range(1,n+1):
+            jnz[i-1]=sp.spherical_jn(i,z)
+        jn1z = np.zeros((n),dtype=complex)
+        for i in range(1,n+1):
+            jn1z[i-1]=sp.spherical_jn(i-1,z)
+
+        an = np.zeros((n), dtype=complex)
+        for i in range(0,n): #asigna en cada elemento (comenzando desde
+                         ## 1 y no de cero) de la matriz PHI un valor 
+                         ##calculado por medio de la ecuacion dentro 
+                         ##del for 
+    	    an[i]=((m**2)*(jnz[i])*(x*jn1[i]-(i+1)*jn[i])-jn[i]*(z*jn1z[i]
+                  -(i+1)*jnz[i]))/((m**2)*(jnz[i])*(x*hn1[i]-(i+1)*hn[i])-
+                  hn[i]*(z*jn1z[i]-(i+1)*jnz[i]))
+
+        bn = np.zeros((n), dtype=complex)
+        for i in range(0,n):  
+	        bn[i]=((jnz[i])*(x*jn1[i]-(i+1)*jn[i])-jn[i]*(z*jn1z[i]
+                  -(i+1)*jnz[i]))/((jnz[i])*(x*hn1[i]-(i+1)*hn[i])
+                  -hn[i]*(z*jn1z[i]-(i+1)*jnz[i]))
+
+        return(an,bn,n)
+               
+    an,bn,n=anbn(lon,n1,n2,m1,r)    
+ 
+    def S2S(n):
+        t = sy.symbols('t')
+        r = sy.zeros((n), dtype=complex)
+        for i in range(1,n):
+            r[i-1] =  ((2*i+1)/(i*(i+1))) *( an[i-1]*deripolasoc(1,i,t) +bn[i-1]* polasoc(1,i)/sy.sin(t))
+        r=sum(r)  
+        return (r)
+
+    def S2R(t1):
+        b=lambdify(t,S2S(n),np)
+        c=b(t1)
+        return c
+
+    p=np.abs(S2R(t2))**2
+
+    return(p)
+    
+
+
+#indice Ag McPeak
+
+
+l,m,k=np.loadtxt('indice Au3.txt',unpack=True, usecols=[0,1,2],delimiter='\t')
+
+
+
+d=0.020  #radio de la esfera en micrometros
+
+l1=0.525
+
+mp=list(l)
+ubi=mp.index(l1)
+mm=m[ubi] 
+
+
+kp=list(l)
+ubi=kp.index(l1)
+kk=k[ubi] 
+
+print(mm,kk)
+
+
+r = np.arange(0, 8)
+#theta= np.linspace(0.0001,2.0001*np.pi,200)
+theta=np.mgrid[0.0001:2.0001*np.pi:200j]
+phi = np.linspace(0,np.pi,50)
+#r = S2N2(0.526,0.46877,2.14520 ,1.335,d,theta)+S1N2(0.526,0.46877,2.14520 ,1.335,d,theta) #oro 
+#r = S2N2(0.600,0.17916,3.15723 ,1.335,d,theta)+S1N2(0.600,0.17916,3.15723,1.335,d,theta) #oro2
+#r = S2N2(0.414,0.03345,2.08316,1.335,d,theta)+S1N2(0.414,0.03345,2.08316,1.335,d,theta) #plata
+#r = S2N2(0.520,4.190,0.038,1,d,theta)+S1N2(0.520,4.190,0.038,1,d,theta) #silicio l=520nm
+#r = S2N2(0.525,4.168,0.036,1,d,theta)+S1N2(0.525,4.168,0.036,1,d,theta) #silicio l=525nm
+#r = S2N2(0.565,4.027,0.025,1,d,theta)+S1N2(0.565,4.027,0.025,1,d,theta) #silicio l=565nm
+#r = S2N2(0.660,3.828,0.014,1,d,theta)+S1N2(0.660,3.828,0.014,1,d,theta) #silicio l=660nm
+#r = S2N2(0.500,4.290,0.047,1,d,theta)+S1N2(0.500,4.290,0.047,1,d,theta) #silicio l=500nm
+#r = S2N2(0.550,4.075,0.029,1,d,theta)+S1N2(0.550,4.075,0.029,1,d,theta) #silicio l=550nm
+#r = S2N2(0.620,3.893,0.017,1,d,theta)+S1N2(0.620,3.893,0.017,1,d,theta) #silicio l=620nm
+#r = S2N2(0.585,3.971,0.022,1,d,theta)+S1N2(0.585,3.971,0.022,1,d,theta) #silicio l=585nm
+#r = S2N2(0.660,3.828,0.014,1.45,d,theta)+S1N2(0.660,3.828,0.014,1.45,d,theta) #silicio l=660nm
+
+# =============================================================================
+# Metanol
+# =============================================================================
+#r = S2N2(0.446,4.718,0.099,1.32645,d,theta)+S1N2(0.446,4.718,0.099,1.32645,d,theta) #silicio 
+#r = S2N2(0.500,4.290,0.047,1.32645,d,theta)+S1N2(0.500,4.290,0.047,1.32645,d,theta) #silicio 
+#r = S2N2(0.645,3.850,0.015,1.32645,d,theta)+S1N2(0.645,3.850,0.015,1.32645,d,theta) #silicio 
+#r = S2N2(0.690,3.785,0.012,1.32645,d,theta)+S1N2(0.690,3.785,0.012,1.32645,d,theta) #silicio 
+
+
+
+# =============================================================================
+# Cuarzo
+# =============================================================================
+#r=S1N2(0.455,4.622,0.085,1.544,d,theta)+S2N2(0.455,4.622,0.085,1.544,d,theta) #oro
+#r=S1N2(0.505,4.262,0.045,1.544,d,theta)+S2N2(0.505,4.262,0.045,1.544,d,theta) #oro
+#r=S1N2(0.645,3.850,0.015,1.544,d,theta)+S2N2(0.645,3.850,0.015,1.544,d,theta) #oro
+
+
+# =============================================================================
+# plata
+# =============================================================================
+
+
+#r = S2N2(0.440,0.02921,2.34627,1,d,theta)+S1N2(0.440,0.02921,2.34627,1,d,theta) 
+#r = S2N2(0.43,0.041992656,2.465312026,1,d,theta)+S1N2(0.43,0.041992656,2.465312026,1,d,theta) 
+
+
+r = S2N2(l1,mm,kk,1,d,theta)+S1N2(l1,mm,kk,1,d,theta) 
+
+
+#r=S2N2(0.5009,4.2810,0.0240,1,0.0775,theta)#silicio
+#r=(S1N2(0.5009,4.2810,0.0240,1,d,theta)-S2N2(0.5009,4.2810,0.0240,1,d,theta))/(S1N2(0.5009,4.2810,0.0240,1,d,theta)+S2N2(0.5009,4.2810,0.0240,1,d,theta))  #S
+#r=S1N2(0.500,4.14,0.02,1,d,theta)+S2N2(0.500,4.14,0.02,1,d,theta)  #Silicio 
+#r=S1N2(0.520,0.53358,2.05316,1.33,d,theta)+S2N2(0.520,0.53358,2.05316,1.33,d,theta) #oro
+fig = plt.figure()
+ax = fig.add_subplot(111, projection="polar")
+ax.plot(theta,r,color="gray",linewidth=2)
+#plt.savefig('/Users/oslen/Desktop/l520pol.jpg', dpi=1000.0, bbox_inches='tight', pad_inches=0.5) ##Para guardar imagenes en buena calidad
+#plt.savefig('/Users/oslen/Library/Mobile Documents/com~apple~CloudDocs/Documents/Tesis Maestría/Libro Tesis Maestria/ag60p4.jpg', dpi=1500.0, bbox_inches='tight', pad_inches=0.5)
+
+plt.show()
+
+#r = S2N2(0.500,4.290,0.047,1,d,theta)+S1N2(0.500,4.290,0.047,1,d,theta) #silicio l=500nm
+
+
+
+
+
+
+
+#d=0.0947
+PHI, THETA = np.mgrid[0.0001:(2.0001)/1*np.pi:100j, 0.0001:1.0001*np.pi:200j]
+#R= np.abs(S2N2(0.6199,3.906,0.022,1.33,0.016,THETA))
+#R=(S1N2(0.5009,4.2810,0.0240,1,d,THETA)-S2N2(0.5009,4.2810,0.0240,1,d,THETA))/(S1N2(0.5009,4.2810,0.0240,1,d,THETA)+S2N2(0.5009,4.2810,0.0240,1,d,THETA))  #S
+#R=S1N2(0.500,4.14,0.02,1,d,THETA)+S2N2(0.500,4.14,0.02,1,d,THETA)  #Silicio
+#R=S1N2(0.526,0.46877,2.14520 ,1.335,d,THETA)+S2N2(0.526,0.46877,2.14520 ,1.335,d,THETA) #oro
+#R=S1N2(0.600,0.17916,3.15723,1.335,d,THETA)+S2N2(0.600,0.17916,3.15723,1.335,d,THETA) #oro2 
+#R=S1N2(0.414,0.03345,2.08316,1.335,d,THETA)+S2N2(0.414,0.03345,2.08316,1.335,d,THETA) #plata
+#R=S1N2(0.520,4.190,0.038,1,d,THETA)+S2N2(0.520,4.190,0.038,1,d,THETA) #Silicio l=520nm
+#R=S1N2(0.525,4.168,0.036,1,d,THETA)+S2N2(0.525,4.168,0.036,1,d,THETA) #Silicio l=525nm
+#R=S1N2(0.565,4.027,0.025,1,d,THETA)+S2N2(0.565,4.027,0.025,1,d,THETA) #Silicio l=565nm
+#R=S1N2(0.660,3.828,0.014,1,d,THETA)+S2N2(0.660,3.828,0.014,1,d,THETA) #Silicio l=660nm
+#R=S1N2(0.500,4.290,0.047,1,d,THETA)+S2N2(0.500,4.290,0.047,1,d,THETA) #Silicio l=500nm
+#R=S1N2(0.550,4.075,0.029,1,d,THETA)+S2N2(0.550,4.075,0.029,1,d,THETA) #Silicio l=550nm
+#R=S1N2(0.620,3.893,0.017,1,d,THETA)+S2N2(0.620,3.893,0.017,1,d,THETA) #Silicio l=620nm
+#R=S1N2(0.585,3.971,0.022,1,d,THETA)+S2N2(0.585,3.971,0.022,1,d,THETA) #Silicio l=585nm
+#R=S1N2(0.660,3.828,0.014,1.45,d,THETA)+S2N2(0.660,3.828,0.014,1.45,d,THETA) #Silicio l=660nm
+
+# =============================================================================
+# Metanol
+# =============================================================================
+
+#R=S1N2(0.446,4.718,0.099,1.32645,d,THETA)+S2N2(0.446,4.718,0.099,1.32645,d,THETA) #Silicio
+#R=S1N2(0.500,4.290,0.047,1.32645,d,THETA)+S2N2(0.500,4.290,0.047,1.32645,d,THETA) #Silicio
+#R=S1N2(0.645,3.850,0.015,1.32645,d,THETA)+S2N2(0.645,3.850,0.015,1.32645,d,THETA) #Silicio
+#R=S1N2(0.690,3.785,0.012,1.32645,d,THETA)+S2N2(0.690,3.785,0.012,1.32645,d,THETA) #Silicio
+
+# =============================================================================
+# Cuarzo
+# =============================================================================
+#R=S1N2(0.455,4.622,0.085,1.544,d,THETA)+S2N2(0.455,4.622,0.085,1.544,d,THETA) 
+#R=S1N2(0.505,4.262,0.045,1.544,d,THETA)+S2N2(0.505,4.262,0.045,1.544,d,THETA) 
+#R=S1N2(0.645,3.850,0.015,1.544,d,THETA)+S2N2(0.645,3.850,0.015,1.544,d,THETA) 
+
+
+# =============================================================================
+# Plata
+# =============================================================================
+
+#R=S1N2(0.440,0.02921,2.34627,1,d,THETA)+S2N2(0.440,0.02921,2.34627,1,d,THETA) 
+#R=S1N2(0.43,0.041992656,2.465312026,1,d,THETA)+S2N2(0.43,0.041992656,2.465312026,1,d,THETA) 
+R=S1N2(l1,mm,kk,1,d,THETA)+S2N2(l1,mm,kk,1,d,THETA) 
+
+
+
+
+X = R * np.sin(THETA) * np.cos(PHI)
+Y = R * np.sin(THETA) * np.sin(PHI)
+Z = R * np.cos(THETA)
+#Como R tiene valores negativos, utilizaremos una instancia de Normalize
+#según http://stackoverflow.com/questions/25023075/normalizing-colormap-used-by-facecolors-in-matplotlib
+#norm=mcolors.Normalize(vmin=1., vmax=3.)
+norm = colors.Normalize()
+fig, ax = plt.subplots(subplot_kw=dict(projection='3d'), figsize=(10,10))
+m = cm.ScalarMappable(cmap=cm.jet)
+ax.plot_surface(X, Y, Z, rstride=1, cstride=1,facecolors=cm.gray(norm(R)))
+# =============================================================================
+# para variar colores despues de cm. cambiar nomenclatura :summerCMRmap
+# https://matplotlib.org/3.1.0/tutorials/colors/colormaps.html
+# =============================================================================
+#ax.set_title('r=19,6$nm$', fontsize=20)
+m.set_array(R)
+#plt.savefig('/Users/oslen/Library/Mobile Documents/com~apple~CloudDocs/Documents/Tesis Maestría/Libro Tesis Maestria/ag60e4.jpg', dpi=1500.0, bbox_inches='tight', pad_inches=0.5)
+
+#plt.savefig('/Users/oslen/Desktop/l520esf.jpg', dpi=1000.0, bbox_inches='tight', pad_inches=0.5)
+fig.colorbar(m, shrink=0.8);
